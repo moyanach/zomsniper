@@ -1,10 +1,10 @@
 
 from skills.base_skill import BaeSkill
 
-class ChooseZhuangJiaChe(BaeSkill):
-    name = "装甲车技能"
+class ChooseRandom(BaeSkill):
+    name = "随机技能"
 
-    def __init__(self, images_path: str = 'assets/zhuang_jia_che/'):
+    def __init__(self, images_path: str = 'assets/randoms/'):
         super().__init__(images_path)
 
     def choose_skill(self):

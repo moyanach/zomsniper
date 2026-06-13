@@ -2,165 +2,211 @@ import pyautogui
 import cv2
 import numpy as np
 import time
-import random
 
+from common.base_autogui import BaseAutoGui
 from skills.choose_skill import ChooseSkills
+from quick_patroal.quick_patroal import QuickPatroal
 
-
-
-# 设置 PyAutoGUI 的安全选项
-pyautogui.FAILSAFE = True  # 鼠标移到左上角可紧急停止
-pyautogui.PAUSE = 0.15     # 每次操作后的微小延迟
-
-# 模拟器窗口偏移量（需要根据实际情况调整）
-# 如果游戏运行在模拟器中，需要加上模拟器窗口相对于屏幕左上角的偏移
-EMULATOR_OFFSET_X = 0  # 模拟器窗口 X 偏移
-EMULATOR_OFFSET_Y = 0  # 模拟器窗口 Y 偏移
-
-def find_image(template_path, confidence=0.75):
-    """在当前屏幕中寻找目标图片，返回中心坐标"""
-    try:
-        import os
-        # 检查文件是否存在
-        if not os.path.exists(template_path):
-            print(f"❌ 文件不存在 [{template_path}]")
-            return None
-        
-        # 打印图片尺寸用于调试
-        from PIL import Image
-        img = Image.open(template_path)
-        print(f"   📷 模板图片 [{template_path}]: {img.size}")
-        
-        location = pyautogui.locateOnScreen(template_path, confidence=confidence)
-        if location:
-            center = pyautogui.center(location)
-            print(f"   ✅ 匹配成功 -> ({int(center.x)}, {int(center.y)})")
-            return center
-        else:
-            print(f"   ❌ 未匹配到模板 [{template_path}]（置信度阈值: {confidence}）")
-    except Exception as e:
-        print(f"⚠️ 图片识别异常 [{template_path}]: {e}")
-    return None
-
-def safe_click(pos, description=""):
-    """安全点击：带随机偏移和分步操作"""
-    if pos is None:
-        return False
-    
-    screen_w, screen_h = pyautogui.size()
-    
-    # 加上模拟器窗口偏移（如果游戏在模拟器中运行）
-    x = int(pos.x) * 0.5 + EMULATOR_OFFSET_X
-    y = int(pos.y) * 0.5 + EMULATOR_OFFSET_Y
-    
-    # 验证坐标是否在屏幕范围内
-    if x < 0 or x >= screen_w or y < 0 or y >= screen_h:
-        print(f"❌ 坐标 ({x}, {y}) 超出屏幕范围 ({screen_w}x{screen_h})，跳过点击")
-        print(f"   提示：如果游戏在模拟器中运行，请设置 EMULATOR_OFFSET_X/Y")
-        return False
-    
-    # 添加微小随机偏移（模拟人类操作，避免被检测）
-    offset_x = random.randint(-3, 3)
-    offset_y = random.randint(-3, 3)
-    target_x, target_y = x + offset_x, y + offset_y
-    
-    # 确保偏移后仍在屏幕内
-    target_x = max(0, min(screen_w - 1, target_x))
-    target_y = max(0, min(screen_h - 1, target_y))
-    
-    print(f"🖱️ 点击 {description}: ({target_x}, {target_y})")
-    
-    # 分两步：先移动再点击，带 duration 让移动更自然
-    pyautogui.moveTo(target_x, target_y , duration=0.2)
-    time.sleep(0.1)  # 短暂停顿
-    pyautogui.click()
-    
-    return True
-
-# def skil_click(pos, description=""):
-#     """安全点击：带随机偏移和分步操作（技能点击位置下移 100 像素）"""
-#     if pos is None:
-#         return False
-    
-#     screen_w, screen_h = pyautogui.size()
-    
-#     # 加上模拟器窗口偏移 + 技能按钮下移
-#     x = int(pos.x) * 0.5 + EMULATOR_OFFSET_X
-#     y = int(pos.y) * 0.5  + EMULATOR_OFFSET_Y + 100
-    
-#     # 验证坐标是否在屏幕范围内
-#     if x < 0 or x >= screen_w or y < 0 or y >= screen_h:
-#         print(f"❌ 坐标 ({x}, {y}) 超出屏幕范围 ({screen_w}x{screen_h})，跳过点击")
-#         return False
-    
-#     # 添加微小随机偏移（模拟人类操作，避免被检测）
-#     offset_x = random.randint(-3, 3)
-#     offset_y = random.randint(-3, 3)
-#     target_x, target_y = x + offset_x, y + offset_y
-    
-#     # 确保偏移后仍在屏幕内
-#     target_x = max(0, min(screen_w - 1, target_x))
-#     target_y = max(0, min(screen_h - 1, target_y))
-    
-#     print(f"🖱️ 点击 {description}: ({target_x}, {target_y})")
-    
-#     # 分两步：先移动再点击，带 duration 让移动更自然
-#     pyautogui.moveTo(target_x, target_y , duration=0.2)
-#     time.sleep(0.1)  # 短暂停顿
-#     pyautogui.click()
-    
-#     return True
-
-
-# def choose_skill(skills: list = [zi_dan, wen_ya_dan]):
-#     for skill in skills:
-#         point = skill.choose_skill()
-#         print(f"skill: {skill.name}")
-#         if point:
-#             print("🛡️ 检测到技能选择，自动点击")
-#             if skil_click(point, "技能"):
-#                 time.sleep(1)
-#             continue
-        
 
 def auto_battle_loop():
+    """
+    主循环：根据当前界面状态自动执行操作
+    
+    状态机：
+    - IDLE: 未进入打怪界面，检测开始战斗、前往、等级提升、见面礼、任务礼
+    - BATTLE: 已进入打怪界面，检测技能选择和返回按钮
+    - FULL_SCAN: 连续多轮未识别到按钮，全量检测所有按钮
+    """
     print("🚀 辅助工具已启动，请将游戏窗口置于前台...")
     print("⚠️  提示：确保游戏窗口有 macOS 辅助功能权限")
     print("   系统设置 → 隐私与安全性 → 辅助功能 → 添加终端/iTerm/IDE\n")
     
+    auto_gui = BaseAutoGui()
+    battle_mode = False  # 战斗模式标志：False=主界面, True=战斗中
+    no_match_count = 0   # 连续未匹配次数
+    max_no_match = 3     # 连续未匹配阈值，达到后触发全量检测
+    
     while True:
-        # 1. 寻找并点击"开始战斗"按钮
-        start_pos = find_image("assets/start_game2.png")
-        if start_pos:
-            print(f"✅ 检测到开始按钮，点击进入关卡")
-            if safe_click(start_pos, "开始战斗"):
-                time.sleep(2)
-            # continue
+        if not battle_mode:
+            # ========== 主界面状态：检测开始战斗、前往、奖励按钮 ==========
+            battle_mode, no_match_count = _idle_mode(auto_gui, no_match_count, max_no_match)
+        else:
+            # ========== 战斗模式：检测技能选择、返回按钮 ==========
+            battle_mode, no_match_count = _battle_mode(auto_gui, no_match_count, max_no_match)
 
-        # 1. 寻找并点击"前往"按钮
-        next_map_pos = find_image("assets/next_map.png")
-        if next_map_pos:
-            print(f"✅ 检测到前往按钮，点击进入下一关关卡")
-            if safe_click(next_map_pos, "前往"):
-                time.sleep(2)
-            continue
 
-        ChooseSkills().final_choose_skill()
+def _idle_mode(auto_gui, no_match_count, max_no_match):
+    """
+    主界面状态：检测非战斗相关的按钮
+    
+    Args:
+        auto_gui: BaseAutoGui 实例
+        no_match_count: 连续未匹配次数
+        max_no_match: 触发全量检测的最大未匹配次数
         
-            
-        # 3. 结算界面：点击"继续"或"返回"
-        back_pos = find_image("assets/back.png")
-        if back_pos:
-            print("🎉 关卡结束，准备下一局")
-            if safe_click(back_pos, "返回"):
-                time.sleep(2)
-            continue
-
-        # 未匹配到任何状态，短暂休眠避免 CPU 占用过高
+    Returns:
+        tuple: (是否进入战斗模式, 更新后的未匹配次数)
+    """
+    matched = False
+    
+    # 1. 开始战斗按钮
+    start_pos = auto_gui.match_image("assets/start_game_zfb.png")
+    if start_pos:
+        print(f"✅ [主界面] 检测到开始按钮，点击进入关卡")
+        auto_gui.skil_click(start_pos, "开始战斗")
         time.sleep(2)
+        matched = True
+        return True, 0  # 进入战斗模式，重置计数
+    
+    # 2. 前往下一关按钮
+    next_map_pos = auto_gui.match_image("assets/next_map_zfb.png")
+    if next_map_pos:
+        print(f"✅ [主界面] 检测到前往按钮，点击进入下一关")
+        auto_gui.skil_click(next_map_pos, "前往")
+        time.sleep(2)
+        matched = True
+        return True, 0  # 进入战斗模式，重置计数
+    
+    # 3. 等级提升按钮
+    level_up_pos = auto_gui.match_image("assets/level_up.png")
+    if level_up_pos:
+        print(f"🎉 [主界面] 检测到等级提升按钮")
+        auto_gui.skil_click(level_up_pos, "等级提升", -100)
+        time.sleep(1)
+        matched = True
+    
+    # 4. 见面礼按钮
+    face_gift_pos = auto_gui.match_image("assets/face_gift.png")
+    if face_gift_pos:
+        print(f"🎁 [主界面] 检测到见面礼按钮")
+        auto_gui.skil_click(face_gift_pos, "见面礼", -500)
+        time.sleep(1)
+        matched = True
+    
+    # 5. 任务礼按钮
+    task_gift_pos = auto_gui.match_image("assets/task_gift.png")
+    if task_gift_pos:
+        print(f"📋 [主界面] 检测到任务礼按钮")
+        auto_gui.skil_click(task_gift_pos, "任务礼", -200)
+        time.sleep(1)
+        matched = True
+    
+    # 未匹配到任何按钮
+    if not matched:
+        no_match_count += 1
+        print(f"⚠️ [主界面] 未检测到任何按钮 (连续 {no_match_count}/{max_no_match} 轮)")
+        
+        # 达到阈值，触发全量检测
+        if no_match_count >= max_no_match:
+            print(f"🔄 [全量检测] 连续 {max_no_match} 轮未识别到按钮，开始全量检测所有按钮...")
+            _full_scan_mode(auto_gui)
+            no_match_count = 0  # 重置计数
+    else:
+        no_match_count = 0  # 匹配成功，重置计数
+    
+    # 短暂休眠
+    time.sleep(1)
+    return False, no_match_count
+
+
+def _battle_mode(auto_gui, no_match_count, max_no_match):
+    """
+    战斗模式：检测技能选择和返回按钮
+    
+    Args:
+        auto_gui: BaseAutoGui 实例
+        no_match_count: 连续未匹配次数
+        max_no_match: 触发全量检测的最大未匹配次数
+        
+    Returns:
+        tuple: (是否保持战斗模式, 更新后的未匹配次数)
+    """
+    matched = False
+    
+    # 1. 自动选择技能（检测是否真的匹配到技能）
+    choose_skills = ChooseSkills()
+    choose_skills.final_choose_skill()  # 执行技能选择
+    has_chosen_skill = choose_skills.has_chosen_skill  # 检查是否匹配到技能
+    
+    if has_chosen_skill:
+        matched = True
+        print(f"✅ [战斗中] 已选择技能")
+    # else:
+    #     # 未匹配到技能，尝试默认选择
+    #     choose_skills.choose_skill_by_default()
+    #     print(f"⚠️ [战斗中] 未匹配到技能，尝试默认选择")
+    
+    # 2. 返回按钮（关卡结束）
+    back_pos = auto_gui.match_image("assets/back_zfb.png")
+    if back_pos:
+        print(f"🎉 [战斗结束] 检测到返回按钮，准备下一局")
+        auto_gui.skil_click(back_pos, "返回")
+        time.sleep(2)
+        return False, 0  # 返回主界面状态，重置计数
+    
+    # 3. 连续未匹配检测
+    if not matched:
+        no_match_count += 1
+        print(f"⚠️ [战斗中] 未匹配到技能 (连续 {no_match_count}/{max_no_match} 轮)")
+        
+        # 达到阈值，触发全量检测
+        if no_match_count >= max_no_match:
+            print(f"🔄 [全量检测] 连续 {max_no_match} 轮未识别到技能，开始全量检测...")
+            _full_scan_mode(auto_gui)
+            no_match_count = 0  # 重置计数
+    else:
+        no_match_count = 0  # 匹配成功，重置计数
+    
+    # 战斗中，保持战斗模式
+    time.sleep(0.5)  # 短暂休眠，避免 CPU 占用过高
+    return True, no_match_count
+
+
+def _full_scan_mode(auto_gui):
+    """
+    全量检测模式：同时检测所有可能的按钮
+    
+    用于连续多轮未识别到按钮时的兜底检测
+    """
+    print(f"🔍 [全量检测] 开始扫描所有可能的按钮...")
+    
+    # 主界面按钮
+    buttons_idle = [
+        ("assets/start_game_zfb.png", "开始战斗", 0),
+        ("assets/next_map.png", "前往", 0),
+        ("assets/level_up.png", "等级提升", -100),
+        ("assets/face_gift.png", "见面礼", -500),
+        ("assets/task_gift.png", "任务礼", -200),
+    ]
+    
+    # 战斗界面按钮
+    buttons_battle = [
+        ("assets/back_zfb.png", "返回", 0),
+    ]
+    
+    # 先检测主界面按钮
+    for img_path, desc, y_offset in buttons_idle:
+        pos = auto_gui.match_image(img_path)
+        if pos:
+            print(f"✅ [全量检测] 匹配到主界面按钮: {desc}")
+            auto_gui.skil_click(pos, desc, y_offset)
+            time.sleep(1)
+            return  # 匹配到一个就返回
+    
+    # 再检测战斗界面按钮
+    for img_path, desc, y_offset in buttons_battle:
+        pos = auto_gui.match_image(img_path)
+        if pos:
+            print(f"✅ [全量检测] 匹配到战斗按钮: {desc}")
+            auto_gui.skil_click(pos, desc, y_offset)
+            time.sleep(1)
+            return  # 匹配到一个就返回
+    
+    print(f"⚠️ [全量检测] 未匹配到任何按钮，请检查游戏界面")
 
 if __name__ == "__main__":
     auto_battle_loop()
+    # QuickPatroal().choose_run()
 
     # choose_skill()
     # ChooseSkills().final_choose_skill()

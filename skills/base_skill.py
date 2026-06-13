@@ -1,9 +1,13 @@
 import os
 
+from common.base_autogui import BaseAutoGui
+
 class BaeSkill:
     def __init__(self, images_path: str = 'assets/zi_dan/'):
         self.images_path = images_path
         self.image_extensions = {'.png', '.jpg', '.jpeg'}
+        self.auto_gui = BaseAutoGui()
+
 
     def find_images(self):
         image_extensions = {'.png', '.jpg', '.jpeg', '.bmp', '.gif'}
