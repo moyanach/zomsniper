@@ -43,10 +43,12 @@ class ChooseSkills:
                     for k_skill in self.key_skill:
                         k_point = k_skill.choose_skill()
                         if k_point:
-                            skill.auto_gui.skil_click(k_point, f"{k_skill.name}技能")
+                            k_skill.auto_gui.skil_click(k_point, f"{k_skill.name}技能")
                             self.has_chosen_skill = True
                             break
-                    continue
+                    skill.auto_gui.skil_click(point, f"{skill.name}技能")
+                    self.has_chosen_skill = True
+                    break
                 else:
                     skill.auto_gui.skil_click(point, f"{skill.name}技能")
                     self.has_chosen_skill = True
