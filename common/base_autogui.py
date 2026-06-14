@@ -60,6 +60,40 @@ class BaseAutoGui(object):
         pyautogui.doubleClick()
         return True
 
+    def btn_click(self, pos, description="", y_offset=0):
+        """安全点击：带随机偏移和分步操作（技能点击位置下移 100 像素）"""
+        if pos is None:
+            print(f"❌ 未找到 {description} 位置，跳过点击")
+            return False
+        
+        screen_w, screen_h = pyautogui.size()
+        
+        # 加上模拟器窗口偏移 + 技能按钮下移
+        x = int(pos.x) * 0.5 
+        y = int(pos.y) * 0.5 
+        
+        # 验证坐标是否在屏幕范围内
+        if x < 0 or x >= screen_w or y < 0 or y >= screen_h:
+            print(f"❌ 坐标 ({x}, {y}) 超出屏幕范围 ({screen_w}x{screen_h})，跳过点击")
+            return False
+        
+        # 添加微小随机偏移（模拟人类操作，避免被检测）
+        offset_x = random.randint(-1, 1)
+        offset_y = random.randint(-1, 1) + y_offset
+        target_x, target_y = x + offset_x, y + offset_y
+        
+        # 确保偏移后仍在屏幕内
+        target_x = max(0, min(screen_w - 1, target_x))
+        target_y = max(0, min(screen_h - 1, target_y))
+        
+        print(f"🖱️ 点击 {description}: ({target_x}, {target_y})")
+        
+        # 分两步：先移动再点击，带 duration 让移动更自然
+        pyautogui.moveTo(target_x, target_y , duration=0.2)
+        time.sleep(1)  # 短暂停顿
+        pyautogui.doubleClick()
+        return True
+
     def safe_scroll(self, clicks, pos, description=""):
         """安全滚动：带坐标校验和人类模拟停顿
         

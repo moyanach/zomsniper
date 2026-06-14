@@ -5,18 +5,21 @@ from common.base_autogui import BaseAutoGui
 from skills.choose_wenydadan import ChooseWenYuDadan
 from skills.choose_zidan import ChooseZidan
 from skills.choose_shandian import ChooseShanDian
-from skills.choose_zhuangjiache import ChooseZhuangJiaChe
+from skills.choose_shexian import ChooseShenXian
 from skills.choose_random import ChooseRandom
 
 zi_dan = ChooseZidan()
 wen_ya_dan = ChooseWenYuDadan()
 shan_dian = ChooseShanDian()
-zhuang_jia_che = ChooseZhuangJiaChe()  
+shen_xian = ChooseShenXian()
 random_skill = ChooseRandom()
 
 
 class ChooseSkills:
-    def __init__(self, skills: list = [zi_dan, wen_ya_dan, shan_dian, zhuang_jia_che, random_skill]):
+    def __init__(
+        self,
+        skills: list = [zi_dan, wen_ya_dan, shan_dian, shen_xian, random_skill],
+    ):
         self.skills = skills
         self.key_skill = [zi_dan, wen_ya_dan]
         self.key_skill_names = [zi_dan.name]

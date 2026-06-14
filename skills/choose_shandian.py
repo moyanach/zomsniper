@@ -1,10 +1,10 @@
 
-from skills.base_skill import BaeSkill
+from common.base_skill import BaeSkill
 
 class ChooseShanDian(BaeSkill):
     name = "闪电技能"
 
-    def __init__(self, images_path: str = 'assets/shan_dian/'):
+    def __init__(self, images_path: str = 'assets//skills/c_shan_dian/'):
         super().__init__(images_path)
 
     def choose_skill(self):

@@ -1,16 +1,16 @@
-
 from common.base_skill import BaeSkill
 
-class ChooseRandom(BaeSkill):
-    name = "随机技能"
 
-    def __init__(self, images_path: str = 'assets/skills/z_randoms/'):
+class StayIndexBtn(BaeSkill):
+    name = "选择主界面按钮"
+
+    def __init__(self, images_path: str = "assets/btns/index/"):
         super().__init__(images_path)
 
-    def choose_skill(self):
+    def choose_btn(self):
         skill_images = self.find_images()
         for skill_image in skill_images:
-            point =  self.auto_gui.match_image(skill_image)
+            point = self.auto_gui.match_image(skill_image)
             if point:
                 return point
         return None

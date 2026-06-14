@@ -1,10 +1,10 @@
 
-from skills.base_skill import BaeSkill
+from common.base_skill import BaeSkill
 
 class ChooseWenYuDadan(BaeSkill):
     name = "温压弹"
 
-    def __init__(self, images_path: str = 'assets/wen_ya_dan/'):
+    def __init__(self, images_path: str = 'assets/skills/b_wen_ya_dan/'):
         super().__init__(images_path)
 
     def choose_skill(self):
